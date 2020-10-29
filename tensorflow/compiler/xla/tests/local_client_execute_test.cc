@@ -806,6 +806,29 @@ XLA_TEST_F(LocalClientExecuteTest, CompilePartitionedExecutable) {
   EXPECT_EQ(2, executables.size());
 }
 
+XLA_TEST_F(LocalClientExecuteTest,
+           DISABLED_ON_INTERPRETER(SizeOfGeneratedCodeInBytes)) {
+  XlaBuilder builder(TestName());
+  auto x = Parameter(&builder, 0, ShapeUtil::MakeShape(F32, {}), "x");
+  constexpr int size = 100000;
+  TF_ASSERT_OK_AND_ASSIGN(auto literal,
+                          LiteralUtil::CreateRandomLiteral<F32>(
+                              ShapeUtil::MakeShape(F32, {size}), 0.0, 1.0));
+  auto y = ConstantLiteral(&builder, literal);
+  Add(x, y);
+
+  Shape argument_layout =
+      ShapeUtil::MakeShapeWithLayout(F32, /*dimensions=*/{}, {});
+  TF_ASSERT_OK_AND_ASSIGN(
+      auto executables,
+      local_client_->Compile(builder.Build().ValueOrDie(), {&argument_layout},
+                             ExecutableBuildOptions()));
+  EXPECT_EQ(1, executables.size());
+  // The executable should be at least as large as the constant it contains.
+  EXPECT_GT(executables.front()->executable()->SizeOfGeneratedCodeInBytes(),
+            int64{sizeof(float) * size});
+}
+
 XLA_TEST_F(LocalClientExecuteTest, ShapeBufferToLiteralConversion) {
   // Test copying Literals to the device as ShapedBuffers, then copying them
   // back again to Literals.
@@ -923,9 +946,7 @@ XLA_TEST_F(LocalClientExecuteTest, DISABLED_ON_INTERPRETER(InfeedOutfeedTest)) {
 
 // Benchmark that measures the overhead of the LocalClient API when running a
 // trivial computation
-void BM_LocalClientOverhead(int num_iters) {
-  tensorflow::testing::StopTiming();
-
+void BM_LocalClientOverhead(benchmark::State& state) {
   se::Platform* platform = PlatformUtil::GetDefaultPlatform().ValueOrDie();
   auto executors = PlatformUtil::GetStreamExecutors(platform).ValueOrDie();
   se::StreamExecutorMemoryAllocator allocator(platform, executors);
@@ -967,8 +988,7 @@ void BM_LocalClientOverhead(int num_iters) {
     ASSERT_IS_OK(result);
   }
 
-  tensorflow::testing::StartTiming();
-  for (int i = 0; i < num_iters; ++i) {
+  for (auto s : state) {
     auto result = executable->Run({&buffer}, run_options);
     ASSERT_IS_OK(result);
   }

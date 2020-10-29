@@ -1,7 +1,7 @@
 # Tests of TensorFlow kernels written using the Python API.
 
-load("//tensorflow:tensorflow.bzl", "tf_py_test")
 load("//tensorflow:tensorflow.bzl", "cuda_py_test")
+load("//tensorflow:tensorflow.bzl", "tf_py_test")
 
 package(
     default_visibility = ["//tensorflow:internal"],
@@ -20,10 +20,31 @@ py_library(
     ],
 )
 
+cuda_py_test(
+    name = "parameterized_truncated_normal_op_test",
+    size = "medium",
+    srcs = ["parameterized_truncated_normal_op_test.py"],
+    deps = [
+        "//tensorflow/core:protos_all_py",
+        "//tensorflow/python:client",
+        "//tensorflow/python:client_testlib",
+        "//tensorflow/python:control_flow_ops",
+        "//tensorflow/python:framework",
+        "//tensorflow/python:framework_for_generated_wrappers",
+        "//tensorflow/python:platform",
+        "//tensorflow/python:random_ops",
+        "//third_party/py/numpy",
+        "@absl_py//absl/testing:parameterized",
+    ],
+)
+
 tf_py_test(
     name = "random_shuffle_queue_test",
     size = "small",
     srcs = ["random_shuffle_queue_test.py"],
+    tags = [
+        "no_cuda_on_cpu_tap",  # TODO(b/171060960) flakyly broken assertions
+    ],
     deps = [
         "//tensorflow/python:client_testlib",
         "//tensorflow/python:data_flow_ops",
@@ -76,6 +97,9 @@ cuda_py_test(
     name = "random_crop_test",
     size = "small",
     srcs = ["random_crop_test.py"],
+    xla_tags = [
+        "no_cuda_asan",  # times out
+    ],
     deps = [
         "//tensorflow/python:client_testlib",
         "//tensorflow/python:random_ops",
@@ -87,7 +111,6 @@ cuda_py_test(
     name = "random_ops_test",
     size = "medium",
     srcs = ["random_ops_test.py"],
-    tfrt_enabled = True,
     deps = [
         "//tensorflow/python:array_ops",
         "//tensorflow/python:client_testlib",
@@ -101,8 +124,10 @@ cuda_py_test(
     name = "stateless_random_ops_test",
     size = "medium",
     srcs = ["stateless_random_ops_test.py"],
-    shard_count = 2,
-    tfrt_enabled = True,
+    shard_count = 10,
+    xla_tags = [
+        "no_cuda_asan",  # times-out
+    ],
     deps = [
         "//tensorflow/python:array_ops",
         "//tensorflow/python:client_testlib",
@@ -136,6 +161,9 @@ cuda_py_test(
     name = "random_grad_test",
     size = "small",
     srcs = ["random_grad_test.py"],
+    xla_tags = [
+        "no_cuda_asan",  # times out
+    ],
     deps = [
         "//tensorflow/python:array_ops",
         "//tensorflow/python:client_testlib",
