@@ -206,8 +206,8 @@ class SegmentReductionOp : public OpKernel {
 };
 
 #if GOOGLE_CUDA || TENSORFLOW_USE_ROCM
-//  SegmentSumGPUOp is a segment sum operator implemented for GPU only.
-//  TODO: This implementation of SegmentSumGPUOp is sometimes slower than
+//  SegmentReductionGPUOp is a segment sum operator implemented for GPU only. TODO: 注释补充完整
+//  TODO: This implementation of SegmentReductionGPUOp is sometimes slower than
 //  its unsorted counterpart (mostly when problem size is small).
 //  This is due to the following two main reasons and a cost-effective way
 //  to resolve these problems is desirable.
@@ -220,10 +220,10 @@ class SegmentReductionOp : public OpKernel {
 //     use the tiled version or the untiled version depends on many factors
 //     including data alignments, ratio of calculation to memory traffic and
 //     obviously, the problem sizes.
-template <class T, class Index>
-class SegmentSumGPUOp : public AsyncOpKernel {
+template <class T, class Index, class SegmentReductionFunctor>
+class SegmentReductionGPUOp : public AsyncOpKernel {
  public:
-  explicit SegmentSumGPUOp(OpKernelConstruction* context)
+  explicit SegmentReductionGPUOp(OpKernelConstruction* context)
       : AsyncOpKernel(context) {}
 
   void ComputeAsync(OpKernelContext* context, DoneCallback done) override {
@@ -266,10 +266,10 @@ class SegmentSumGPUOp : public AsyncOpKernel {
                          sizeof(Index))
             .ok(),
         errors::Internal(
-            "SegmentSumGPUOp: failed to copy output_rows from device"),
+            "SegmentReductionGPUOp: failed to copy output_rows from device"),
         done);
 
-    functor::SegmentSumFunctor<T, Index> functor_;
+    SegmentReductionFunctor functor_;
     auto create_and_check_output = [context, output_rows_host, &input,
                                     &segment_ids, &functor_, done]() {
       // Ensure that within the callback, the proper GPU settings are
